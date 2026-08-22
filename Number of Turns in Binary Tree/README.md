@@ -16,19 +16,30 @@ or:
 Right → Left
 ```
 
-If the path between `p` and `q` does not contain any turn, return `-1`.
+If the path between the two nodes does not contain any turn, return `-1`.
 
 All node values are distinct.
 
 ### Example 1
 
 ```text
-Input:
 p = 5
 q = 10
 ```
 
-The path is:
+For the tree:
+
+```text
+             1
+           /   \
+          2     3
+         / \   / \
+        4   5 6   7
+       /       / \
+      8       9  10
+```
+
+The path from `5` to `10` is:
 
 ```text
 5 → 2 → 1 → 3 → 6 → 10
@@ -37,19 +48,17 @@ The path is:
 The directions are:
 
 ```text
-5 → 2      Left
-2 → 1      Left
-1 → 3      Right
-3 → 6      Left
-6 → 10     Right
+5 → 2     Left
+2 → 1     Left
+1 → 3     Right
+3 → 6     Left
+6 → 10    Right
 ```
 
-Direction changes occur at:
+Turns occur at:
 
 ```text
-2 → 1 → 3
-3 → 6
-6 → 10
+2, 1, 3, 6
 ```
 
 Therefore:
@@ -71,9 +80,15 @@ The path is:
 1 → 2 → 4
 ```
 
-Both movements are in the same direction.
+Both movements are to the left:
 
-Therefore, there is no turn:
+```text
+Left → Left
+```
+
+There is no turn.
+
+Therefore:
 
 ```text
 Answer = -1
@@ -83,19 +98,26 @@ Answer = -1
 
 ## Intuition
 
-The path from `p` to `q` can be divided around their **Lowest Common Ancestor (LCA)**.
+The path between two nodes can be understood using their **Lowest Common Ancestor (LCA)**.
 
 For example:
 
 ```text
-        LCA
-       /   \
-      p     q
+             LCA
+            /   \
+           /     \
+          p       q
 ```
 
-We find the LCA first.
+The complete path is:
 
-Then:
+```text
+p → LCA → q
+```
+
+So first, we find the LCA of `p` and `q`.
+
+Then we calculate the turns on:
 
 ```text
 LCA → p
@@ -107,15 +129,13 @@ and:
 LCA → q
 ```
 
-are two separate paths.
-
-For each path, we need to count how many times the direction changes.
+Finally, we account for the connection between the two sides at the LCA.
 
 ---
 
 ## Step 1: Find the LCA
 
-We use the standard recursive LCA approach.
+The `LCS()` function finds the lowest common ancestor.
 
 If the current node is:
 
@@ -123,56 +143,54 @@ If the current node is:
 NULL
 ```
 
-or is equal to `p` or `q`, return it.
+or its value is `p` or `q`, we return that node.
 
-Then recursively search in both subtrees.
+Then we search both subtrees.
 
-If both left and right return a node, the current node is the LCA.
-
-Otherwise, return whichever side contains one of the target nodes.
+If both sides contain one of the target nodes:
 
 ```text
-              LCA
-             /   \
-            /     \
-           p       q
+left != NULL
+right != NULL
 ```
 
-This allows us to start counting turns from the correct point.
+then the current node is the LCA.
+
+Otherwise, we return the side containing the target.
+
+```cpp
+Node* left = LCS(root->left, p, q);
+Node* right = LCS(root->right, p, q);
+
+if (left && right) {
+    return root;
+}
+```
 
 ---
 
-## Step 2: Count Turns From the LCA
+## Step 2: Count Turns
 
-The function:
+The important part of the solution is the `solver()` function.
 
-```text id="solver"
+```text
 solver(root, p, q, prev)
 ```
 
-uses `prev` to represent the direction of the previous movement.
+Here `prev` represents the direction of the **previous movement**.
 
 We use:
 
 ```text
-prev = 0
+prev = 0 → previous direction was Left
+prev = 1 → previous direction was Right
 ```
 
-for moving to the **left**, and:
+Suppose the previous direction was left.
 
-```text
-prev = 1
-```
+### Previous direction = Left
 
-for moving to the **right**.
-
-Suppose the previous movement was left:
-
-```text
-prev = 0
-```
-
-If we continue to the left:
+If we move left again:
 
 ```text
 Left → Left
@@ -180,13 +198,13 @@ Left → Left
 
 there is no turn.
 
-So the additional cost is:
+So the cost is:
 
 ```text
 0
 ```
 
-But if we move to the right:
+If we move right:
 
 ```text
 Left → Right
@@ -194,29 +212,47 @@ Left → Right
 
 there is a turn.
 
-So the additional cost is:
+So the cost is:
 
 ```text
 1
 ```
 
-Similarly, if the previous direction was right:
-
-```text
-Right → Right = 0 turns
-Right → Left  = 1 turn
-```
-
 This is handled by:
 
-```text
-if(!prev) {
+```cpp
+if (!prev) {
     ans = min({
         ans,
         solver(root->left, p, q, 0),
         1 + solver(root->right, p, q, 1)
     });
 }
+```
+
+---
+
+### Previous direction = Right
+
+If we move right again:
+
+```text
+Right → Right
+```
+
+there is no turn.
+
+If we move left:
+
+```text
+Right → Left
+```
+
+there is one turn.
+
+Therefore:
+
+```cpp
 else {
     ans = min({
         ans,
@@ -228,95 +264,181 @@ else {
 
 ---
 
-## Dry Run
+## Why `prev` Is Important
 
-Consider the path:
+Consider:
 
 ```text
 5 → 2 → 1 → 3 → 6 → 10
 ```
 
-The LCA of `5` and `10` is:
+The directions are:
+
+```text
+Left
+Left
+Right
+Left
+Right
+```
+
+Now look at the changes:
+
+```text
+Left → Left    = 0
+Left → Right   = 1
+Right → Left   = 1
+Left → Right   = 1
+```
+
+However, because we start counting from the LCA, the first movement from the LCA needs a direction assigned to it.
+
+For the left subtree, we start with:
+
+```text
+prev = 0
+```
+
+because the first edge from the LCA toward the left subtree is a left movement.
+
+For the right subtree, we start with:
+
+```text
+prev = 1
+```
+
+because the first edge from the LCA toward the right subtree is a right movement.
+
+This allows the `solver()` function to correctly count turns inside each side.
+
+---
+
+## Dry Run
+
+Consider:
+
+```text
+p = 5
+q = 10
+```
+
+The LCA is:
 
 ```text
 1
 ```
 
-So we process:
+The path is:
 
 ```text
-        1
-       / \
-      2   3
-     /     \
-    5       6
-             \
-             10
+5 → 2 → 1 → 3 → 6 → 10
 ```
 
 ### Left Side
 
-Path from LCA toward `5`:
+From the LCA:
 
 ```text
 1 → 2 → 5
 ```
 
-Directions:
+The initial direction is left:
 
 ```text
-Left → Left
+prev = 0
 ```
 
-No direction change.
+At node `2`, we move to the right child `5`.
 
-So this side contributes:
+Therefore:
 
 ```text
-0
+Left → Right
 ```
+
+This is a turn.
+
+So:
+
+```text
+left = 1
+```
+
+---
 
 ### Right Side
 
-Path from LCA toward `10`:
+From the LCA:
 
 ```text
 1 → 3 → 6 → 10
 ```
 
-Directions:
+The initial direction is right:
 
 ```text
-Right → Left → Right
+prev = 1
 ```
 
-Turns:
+At node `3`, we move left to `6`:
 
 ```text
-Right → Left = 1
-Left → Right = 1
+Right → Left
 ```
 
-So this side contributes:
+This gives one turn.
+
+Then at node `6`, we move right to `10`:
 
 ```text
-2
+Left → Right
 ```
 
-The complete path from `5` to `10` also includes the change from the left side to the right side at the LCA.
+This gives another turn.
 
 Therefore:
 
 ```text
-Total turns = 0 + 2 + 2
-            = 4
+right = 2
 ```
-
-The implementation handles this connection between the two sides with the final adjustment.
 
 ---
 
-## Why We Return `-1`
+### Turn at the LCA
+
+The two sides are connected through:
+
+```text
+5 → 2 → 1 → 3 → 6 → 10
+```
+
+The movement enters the LCA from the left and leaves the LCA through the right.
+
+Therefore:
+
+```text
+Left → Right
+```
+
+is another turn.
+
+So:
+
+```text
+ans = left + right + 1
+    = 1 + 2 + 1
+    = 4
+```
+
+Therefore:
+
+```text
+Answer = 4
+```
+
+---
+
+## Special Case: LCA Is One of the Nodes
 
 Suppose:
 
@@ -325,31 +447,50 @@ p = 1
 q = 4
 ```
 
-Path:
+The LCA is `1` itself.
+
+The path is:
 
 ```text
 1 → 2 → 4
 ```
 
-Both edges go in the same direction:
+Both movements are left:
 
 ```text
 Left → Left
 ```
 
+There is no turn.
+
+In this case, we should **not add the extra turn at the LCA**.
+
+Your code handles this using:
+
+```cpp
+if (point->data == p || point->data == q) {
+    ans--;
+}
+```
+
+So:
+
+```text
+ans = 0
+```
+
+and finally:
+
+```cpp
+if (ans == 0) {
+    return -1;
+}
+```
+
 Therefore:
 
 ```text
-turns = 0
-```
-
-But the problem asks us to return `-1` when there are no turns.
-
-So after calculating the answer:
-
-```text
-if(ans == 0)
-    return -1;
+Answer = -1
 ```
 
 ---
@@ -443,74 +584,88 @@ public:
 
 ## Complexity
 
-Let `n` be the number of nodes in the binary tree.
+Let `N` be the number of nodes in the binary tree.
 
 ### Time Complexity
 
-Finding the LCA can visit every node:
+Finding the LCA may visit every node:
 
 ```text
-O(n)
+O(N)
 ```
 
-The `solver` function may also traverse nodes in the relevant subtrees:
+The `solver()` traversal also visits nodes along the relevant subtrees:
 
 ```text
-O(n)
+O(N)
 ```
 
-Therefore, the overall time complexity is:
+Therefore:
 
 ```text
-O(n)
+Time Complexity: O(N)
 ```
 
 ### Space Complexity
 
-The recursion depth can be as large as the height of the tree.
+The solution uses recursion.
+
+The maximum recursion depth is equal to the height of the tree.
+
+Therefore:
+
+```text
+Space Complexity: O(H)
+```
+
+where `H` is the height of the tree.
 
 For a skewed tree:
 
 ```text
-O(n)
+H = N
+```
+
+so the worst case is:
+
+```text
+O(N)
 ```
 
 For a balanced tree:
 
 ```text
-O(log n)
-```
-
-Therefore, the worst-case space complexity is:
-
-```text
-O(n)
+H = O(log N)
 ```
 
 ---
 
 ## Key Takeaway
 
-The solution has two main parts:
+The solution can be summarized as:
 
 ```text
 Find LCA of p and q
         ↓
-Split path into two sides
+Find turns from LCA toward p
         ↓
-Count direction changes on each side
+Find turns from LCA toward q
         ↓
-Combine the two results
+If LCA is neither p nor q
+add one turn for crossing from one side to the other
         ↓
-If there are zero turns → return -1
+If total turns = 0
+return -1
 ```
 
-The important idea is to keep track of the **previous direction**. A turn happens exactly when the current direction is different from the previous direction:
+The most important idea is keeping track of the previous direction:
 
 ```text
-Left → Right = 1 turn
-Right → Left = 1 turn
+Left → Left   = 0
+Left → Right  = 1
 
-Left → Left = 0 turns
-Right → Right = 0 turns
+Right → Right = 0
+Right → Left  = 1
 ```
+
+This lets us count exactly where the path changes direction.
