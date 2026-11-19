@@ -25,3 +25,5 @@ class Solution {
         return xorVal(r)^xorVal(l-1);
     }
 };
+
+
